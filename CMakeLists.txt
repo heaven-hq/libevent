@@ -1298,14 +1298,6 @@ if (NOT EVENT__DISABLE_TESTS)
     # Group limits, no connection limit.
     set(RL_BIN ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-ratelim)
 
-    add_test(test-ratelim__group_lim
-             ${RL_BIN}
-             -g 30000
-             -n 30
-             -t 100
-             --check-grouplimit 1000
-             --check-stddev 100)
-
     # Connection limit, no group limit.
     add_test(test-ratelim__con_lim
              ${RL_BIN}
