@@ -268,7 +268,7 @@ test_ratelimiting(void)
 	struct event *group_drain_event=NULL;
 
 	memset(&sin, 0, sizeof(sin));
-	sin.sin_family = AF_INET;
+	sin.sin_family = AF_UNIX;
 	sin.sin_addr.s_addr = htonl(0x7f000001); /* 127.0.0.1 */
 	sin.sin_port = 0; /* unspecified port */
 
