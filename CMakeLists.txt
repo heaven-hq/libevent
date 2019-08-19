@@ -1218,55 +1218,55 @@ if (NOT EVENT__DISABLE_TESTS)
     macro(add_backend_test BACKEND_TEST_NAME ENV_VARS)
         set(TEST_NAMES "")
 
-        foreach (TESTPROG ${TESTPROGS})
-            set(TEST_NAME ${TESTPROG}__${BACKEND_TEST_NAME})
+#        foreach (TESTPROG ${TESTPROGS})
+#            set(TEST_NAME ${TESTPROG}__${BACKEND_TEST_NAME})
 
-            add_test(${TEST_NAME}
-                     ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${TESTPROG})
+#            add_test(${TEST_NAME}
+#                     ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${TESTPROG})
 
-            list(APPEND TEST_NAMES ${TEST_NAME})
+#            list(APPEND TEST_NAMES ${TEST_NAME})
 
-            set_tests_properties(${TEST_NAME}
-                                 PROPERTIES ENVIRONMENT "${ENV_VARS}")
-        endforeach()
+#            set_tests_properties(${TEST_NAME}
+#                                 PROPERTIES ENVIRONMENT "${ENV_VARS}")
+#        endforeach()
 
         # Dump events test.
         if (__FOUND_USABLE_PYTHON)
-            set(TEST_NAME test-dumpevents__${BACKEND_TEST_NAME})
+#            set(TEST_NAME test-dumpevents__${BACKEND_TEST_NAME})
 
-            add_test(${TEST_NAME}
-                     ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-dumpevents |
-                     ${PYTHON_EXECUTABLE}
-                     ${CMAKE_CURRENT_SOURCE_DIR}/test/check-dumpevents.py)
+#            add_test(${TEST_NAME}
+#                     ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-dumpevents |
+#                     ${PYTHON_EXECUTABLE}
+#                     ${CMAKE_CURRENT_SOURCE_DIR}/test/check-dumpevents.py)
 
-            set_tests_properties(${TEST_NAME}
-                                 PROPERTIES ENVIRONMENT "${ENV_VARS}")
+#            set_tests_properties(${TEST_NAME}
+#                                 PROPERTIES ENVIRONMENT "${ENV_VARS}")
         else()
-            message(WARNING "test-dumpevents will be run without output check since python was not found!")
-            set(TEST_NAME test-dumpevents__${BACKEND_TEST_NAME}_no_check)
+#            message(WARNING "test-dumpevents will be run without output check since python was not found!")
+#            set(TEST_NAME test-dumpevents__${BACKEND_TEST_NAME}_no_check)
 
-            add_test(${TEST_NAME}
-                     ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-dumpevents)
+#            add_test(${TEST_NAME}
+#                     ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-dumpevents)
 
-            set_tests_properties(${TEST_NAME}
-                                 PROPERTIES ENVIRONMENT "${ENV_VARS}")
+#            set_tests_properties(${TEST_NAME}
+#                                 PROPERTIES ENVIRONMENT "${ENV_VARS}")
         endif()
 
         # Regress tests.
         if (NOT EVENT__DISABLE_REGRESS AND __FOUND_USABLE_PYTHON)
-            set(TEST_NAME regress__${BACKEND_TEST_NAME})
+#            set(TEST_NAME regress__${BACKEND_TEST_NAME})
 
-            add_test(${TEST_NAME}
-                     ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/regress)
+#            add_test(${TEST_NAME}
+#                     ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/regress)
 
-            set_tests_properties(${TEST_NAME}
-                                 PROPERTIES ENVIRONMENT "${ENV_VARS}")
+#            set_tests_properties(${TEST_NAME}
+#                                 PROPERTIES ENVIRONMENT "${ENV_VARS}")
 
-            add_test(${TEST_NAME}_debug
-                     ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/regress)
+#            add_test(${TEST_NAME}_debug
+#                     ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/regress)
 
-            set_tests_properties(${TEST_NAME}_debug
-                                 PROPERTIES ENVIRONMENT "${ENV_VARS};EVENT_DEBUG_MODE=1")
+#            set_tests_properties(${TEST_NAME}_debug
+#                                 PROPERTIES ENVIRONMENT "${ENV_VARS};EVENT_DEBUG_MODE=1")
         endif()
     endmacro()
 
