@@ -49,6 +49,7 @@
 #include "event2/util.h"
 #include "event2/listener.h"
 #include "event2/thread.h"
+#include "bufferevent-internal.h"
 
 static struct evutil_weakrand_state weakrand_state;
 
@@ -111,13 +112,16 @@ static void check_bucket_levels_cb(evutil_socket_t fd, short events, void *arg);
 static void
 loud_writecb(struct bufferevent *bev, void *ctx)
 {
+	struct bufferevent_private *bufev_p = BEV_UPCAST(bev);
 	struct client_state *cs = ctx;
 	struct evbuffer *output = bufferevent_get_output(bev);
 	char buf[1024];
 	int r = evutil_weakrand_(&weakrand_state);
 	memset(buf, r, sizeof(buf));
+	assert(bufferevent_get_max_single_write(bev) == 1024);
 	while (evbuffer_get_length(output) < 8192) {
 		evbuffer_add(output, buf, sizeof(buf));
+		bufferevent_decrement_write_buckets_(bufev_p, sizeof(buf));
 		cs->queued += sizeof(buf);
 	}
 }
@@ -125,9 +129,12 @@ loud_writecb(struct bufferevent *bev, void *ctx)
 static void
 discard_readcb(struct bufferevent *bev, void *ctx)
 {
+	struct bufferevent_private *bufev_p = BEV_UPCAST(bev);
 	struct client_state *cs = ctx;
 	struct evbuffer *input = bufferevent_get_input(bev);
 	size_t len = evbuffer_get_length(input);
+	assert(bufferevent_get_max_single_read(bev) == 1024);
+	bufferevent_decrement_read_buckets_(bufev_p, len);
 	evbuffer_drain(input, len);
 	cs->received += len;
 }
@@ -188,8 +195,10 @@ echo_listenercb(struct evconnlistener *listener, evutil_socket_t newsock,
 		assert(bufferevent_get_token_bucket_cfg(bev) != NULL);
 		event_add(check_event, ms100_common);
 	}
-	if (ratelim_group)
+	if (ratelim_group) {
+		bufferevent_remove_from_rate_limit_group(bev);
 		bufferevent_add_to_rate_limit_group(bev, ratelim_group);
+	}
 	++n_echo_conns_open;
 	bufferevent_enable(bev, EV_READ|EV_WRITE);
 }
@@ -204,11 +213,14 @@ check_bucket_levels_cb(evutil_socket_t fd, short events, void *arg)
 	ev_ssize_t w = bufferevent_get_write_limit(bev);
 	ev_ssize_t rm = bufferevent_get_max_to_read(bev);
 	ev_ssize_t wm = bufferevent_get_max_to_write(bev);
+	bufferevent_decrement_read_limit(bev, 1);
+	bufferevent_decrement_write_limit(bev, 1);
 	/* XXXX check that no value is above the cofigured burst
 	 * limit */
 	total_rbucket_level += r;
 	total_wbucket_level += w;
-	total_max_to_read += rm;
+	
+total_max_to_read += rm;
 	total_max_to_write += wm;
 #define B(x) \
 	if ((x) > max_bucket_level)		\
@@ -323,6 +335,10 @@ test_ratelimiting(void)
 			&cfg_tick);
 		group = ratelim_group = bufferevent_rate_limit_group_new(
 			base, group_bucket_cfg);
+		assert(bufferevent_rate_limit_group_set_cfg(group, group_bucket_cfg) == 0);
+		bufferevent_rate_limit_group_reset_totals(group);
+		assert(group->total_read == 0);
+		assert(group->total_written == 0);
 		expected_total_persec = cfg_grouplimit - (cfg_group_drain / seconds_per_tick);
 		expected_avg_persec = cfg_grouplimit / cfg_n_connections;
 		if (cfg_connlimit > 0 && expected_avg_persec > cfg_connlimit)
@@ -347,6 +363,8 @@ test_ratelimiting(void)
 		bevs[i] = bufferevent_socket_new(base, -1,
 		    BEV_OPT_CLOSE_ON_FREE|BEV_OPT_THREADSAFE);
 		assert(bevs[i]);
+		bufferevent_set_max_single_read(bevs[i], 1024);
+		bufferevent_set_max_single_write(bevs[i], 1024);
 		bufferevent_setcb(bevs[i], discard_readcb, loud_writecb,
 		    write_on_connectedcb, &states[i]);
 		bufferevent_enable(bevs[i], EV_READ|EV_WRITE);
@@ -385,6 +403,18 @@ test_ratelimiting(void)
 
 	/* Make sure no new echo_conns get added to the group. */
 	ratelim_group = NULL;
+
+	if (cfg_grouplimit) {
+		ev_uint64_t total_read_out = 0;
+		ev_uint64_t total_written_out = 0;
+		bufferevent_rate_limit_group_get_totals(group, &total_read_out, &total_written_out);
+		printf("total_read_out:%ld\n", total_read_out);
+		printf("total_written_out:%ld\n", total_written_out);
+	}
+
+	if (group_bucket_cfg) {
+		ev_token_bucket_cfg_free(group_bucket_cfg);
+	}
 
 	/* This should get _everybody_ freed */
 	while (n_echo_conns_open) {
