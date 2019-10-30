@@ -33,7 +33,7 @@ endif()
 
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release
-        CACHE STRING "Set build type to Debug o Release (default Release)" FORCE)
+        CACHE STRING "Set build type to Debug or Release (default Release)" FORCE)
 endif()
 string(TOLOWER "${CMAKE_BUILD_TYPE}" CMAKE_BUILD_TYPE_LOWER)
 
@@ -46,7 +46,7 @@ set(EVENT__LIBRARY_TYPE DEFAULT CACHE STRING
 
 project(libevent C)
 
-set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake/")
+list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake/")
 string(REGEX MATCH "SunOS" SOLARIS "${CMAKE_SYSTEM_NAME}")
 
 
@@ -244,7 +244,6 @@ if (${MSVC})
 
     if (EVENT__MSVC_STATIC_RUNTIME)
         foreach (flag_var
-                 CMAKE_C_FLAGS
                  CMAKE_C_FLAGS_DEBUG
                  CMAKE_C_FLAGS_RELEASE
                  CMAKE_C_FLAGS_MINSIZEREL
@@ -365,6 +364,11 @@ if(EVENT__HAVE_SYS_SOCKET_H)
     list(APPEND CMAKE_EXTRA_INCLUDE_FILES sys/socket.h)
 endif()
 
+CHECK_INCLUDE_FILE(sys/random.h EVENT__HAVE_SYS_RANDOM_H)
+if(EVENT__HAVE_SYS_RANDOM_H)
+    list(APPEND CMAKE_EXTRA_INCLUDE_FILES sys/random.h)
+endif()
+
 CHECK_INCLUDE_FILE(netinet/in.h EVENT__HAVE_NETINET_IN_H)
 if(EVENT__HAVE_NETINET_IN_H)
     list(APPEND CMAKE_EXTRA_INCLUDE_FILES netinet/in.h)
@@ -431,7 +435,9 @@ CHECK_INCLUDE_FILE(mach/mach_time.h EVENT__HAVE_MACH_MACH_TIME_H)
 CHECK_INCLUDE_FILE(netinet/tcp.h EVENT__HAVE_NETINET_TCP_H)
 CHECK_INCLUDE_FILE(sys/wait.h EVENT__HAVE_SYS_WAIT_H)
 CHECK_INCLUDE_FILE(sys/resource.h EVENT__HAVE_SYS_RESOURCE_H)
-CHECK_INCLUDE_FILE(sys/sysctl.h EVENT__HAVE_SYS_SYSCTL_H)
+if (NOT "${CMAKE_HOST_SYSTEM_NAME}" STREQUAL "Linux")
+    CHECK_INCLUDE_FILE(sys/sysctl.h EVENT__HAVE_SYS_SYSCTL_H)
+endif()
 CHECK_INCLUDE_FILE(sys/timerfd.h EVENT__HAVE_SYS_TIMERFD_H)
 CHECK_INCLUDE_FILE(errno.h EVENT__HAVE_ERRNO_H)
 
@@ -521,6 +527,13 @@ if(NOT WIN32)
     CHECK_FUNCTION_EXISTS_EX(select EVENT__HAVE_SELECT)
 endif()
 
+if(WIN32)
+    CHECK_FUNCTION_EXISTS_EX(_gmtime64_s EVENT__HAVE__GMTIME64_S)
+    if (NOT EVENT__HAVE__GMTIME64_S)
+        CHECK_FUNCTION_EXISTS_EX(_gmtime64 EVENT__HAVE__GMTIME64)
+    endif()
+endif()
+
 CHECK_TYPE_SIZE("uint8_t" EVENT__HAVE_UINT8_T)
 CHECK_TYPE_SIZE("uint16_t" EVENT__HAVE_UINT16_T)
 CHECK_TYPE_SIZE("uint32_t" EVENT__HAVE_UINT32_T)
@@ -559,9 +572,8 @@ CHECK_SYMBOL_EXISTS("__FUNCTION__" "" EVENT__HAVE___FUNCTION__)
 CHECK_SYMBOL_EXISTS(TAILQ_FOREACH sys/queue.h EVENT__HAVE_TAILQFOREACH)
 CHECK_CONST_EXISTS(CTL_KERN sys/sysctl.h EVENT__HAVE_DECL_CTL_KERN)
 CHECK_CONST_EXISTS(KERN_ARND sys/sysctl.h EVENT__HAVE_DECL_KERN_ARND)
-CHECK_CONST_EXISTS(KERN_RANDOM sys/sysctl.h EVENT__HAVE_DECL_KERN_RANDOM)
-CHECK_CONST_EXISTS(RANDOM_UUID sys/sysctl.h EVENT__HAVE_DECL_RANDOM_UUID)
 CHECK_SYMBOL_EXISTS(F_SETFD fcntl.h EVENT__HAVE_SETFD)
+CHECK_FUNCTION_EXISTS_EX(getrandom EVENT__HAVE_GETRANDOM)
 
 CHECK_TYPE_SIZE(fd_mask EVENT__HAVE_FD_MASK)
 
@@ -973,6 +985,9 @@ macro(add_sample_prog ssl name)
 
     if (${ssl})
         target_link_libraries(${name} event_openssl)
+        if(WIN32)
+            target_link_libraries(${name} crypt32)
+        endif()
     endif()
 endmacro()
 if (NOT EVENT__DISABLE_SAMPLES)
@@ -1474,6 +1489,11 @@ install(FILES ${HDR_COMPAT}
         DESTINATION "include"
         COMPONENT dev)
 
+# Install public headers
+install(FILES ${HDR_PUBLIC}
+        DESTINATION "include/event2"
+        COMPONENT dev)
+
 # Install the configs.
 install(FILES
         ${PROJECT_BINARY_DIR}/${CMAKE_FILES_DIRECTORY}/LibeventConfig.cmake
@@ -1493,13 +1513,11 @@ install(PROGRAMS
        COMPONENT runtime)
 
 # Create documents with doxygen.
-find_program(DOXYGEN doxygen)
-if (DOXYGEN)
-    add_custom_target(doxygen
-                      COMMAND ${DOXYGEN} Doxyfile
-                      WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
-else()
-    message(WARNING "The doxygen target will not support since doxygen command was not found!")
+option(EVENT__DOXYGEN
+    "Enables doxygen documentation" OFF)
+if (EVENT__DOXYGEN)
+    include(UseDoxygen)
+    UseDoxygen()
 endif()
 
 
