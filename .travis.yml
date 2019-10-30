@@ -18,6 +18,11 @@ git:
   quiet: true
 
 env:
+  global:
+   # COVERITY_SCAN_TOKEN
+   - service_name: travis-pro
+   - repo_token: L87dNBOB7LrdzTF21wVDsloUCK4gCooe6
+   
   matrix:
     - EVENT_BUILD_METHOD=cmake EVENT_CMAKE_OPTIONS=""
     - EVENT_BUILD_METHOD=cmake EVENT_CMAKE_OPTIONS="-DEVENT__DISABLE_OPENSSL=ON"
